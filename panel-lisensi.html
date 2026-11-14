@@ -5,9 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Panel Lisensi ALEX STUDIO</title>
 <style>
+  * { box-sizing: border-box; }
   body {
     font-family: 'Segoe UI', sans-serif;
-    background: #0f0f0f;
+    background: radial-gradient(circle at top, #141414, #0a0a0a);
     color: #eee;
     display: flex;
     justify-content: center;
@@ -17,51 +18,78 @@
     padding: 20px;
   }
   .card {
-    background: #1a1a1a;
-    padding: 30px;
-    border-radius: 16px;
+    background: #161616;
+    padding: 32px;
+    border-radius: 18px;
     width: 100%;
-    max-width: 400px;
-    box-shadow: 0 0 20px rgba(0,255,150,0.1);
+    max-width: 420px;
+    box-shadow: 0 0 30px rgba(0,255,170,0.08), 0 10px 40px rgba(0,0,0,0.6);
+    border: 1px solid #222;
   }
   h2 {
     text-align: center;
     color: #00ffaa;
-    margin-bottom: 20px;
+    margin: 0 0 6px;
+    font-size: 22px;
+  }
+  .subtitle {
+    text-align: center;
+    color: #777;
+    font-size: 13px;
+    margin-bottom: 25px;
   }
   label {
     display: block;
-    margin-top: 15px;
-    font-size: 14px;
-    color: #aaa;
+    margin-top: 16px;
+    font-size: 13px;
+    color: #999;
+    font-weight: 600;
   }
   input[type="text"], input[type="password"] {
     width: 100%;
-    padding: 10px;
-    margin-top: 5px;
-    border-radius: 8px;
-    border: 1px solid #333;
-    background: #0f0f0f;
+    padding: 11px;
+    margin-top: 6px;
+    border-radius: 10px;
+    border: 1px solid #2a2a2a;
+    background: #0d0d0d;
     color: #fff;
-    box-sizing: border-box;
+    font-size: 14px;
+    transition: border-color .2s;
+  }
+  input[type="text"]:focus, input[type="password"]:focus {
+    outline: none;
+    border-color: #00ffaa;
   }
   .toggle-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-top: 20px;
+    margin-top: 22px;
+    padding: 14px;
+    background: #0d0d0d;
+    border-radius: 10px;
+  }
+  .toggle-label {
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .toggle-status {
+    font-size: 12px;
+    color: #777;
+    margin-top: 2px;
   }
   .switch {
     position: relative;
     width: 50px;
     height: 26px;
+    flex-shrink: 0;
   }
   .switch input { opacity: 0; width: 0; height: 0; }
   .slider {
     position: absolute;
     cursor: pointer;
     top: 0; left: 0; right: 0; bottom: 0;
-    background-color: #444;
+    background-color: #333;
     border-radius: 26px;
     transition: .3s;
   }
@@ -76,33 +104,46 @@
   }
   input:checked + .slider { background-color: #00c853; }
   input:checked + .slider:before { transform: translateX(24px); }
+
   button {
     width: 100%;
-    margin-top: 25px;
-    padding: 12px;
+    margin-top: 26px;
+    padding: 13px;
     border: none;
-    border-radius: 8px;
+    border-radius: 10px;
     background: #00ffaa;
     color: #000;
-    font-weight: bold;
+    font-weight: 700;
     font-size: 15px;
     cursor: pointer;
+    transition: opacity .2s, transform .1s;
   }
-  button:active { opacity: 0.8; }
+  button:active { transform: scale(0.98); }
+  button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
   #status {
-    margin-top: 15px;
+    margin-top: 16px;
     text-align: center;
-    font-size: 14px;
-    min-height: 20px;
+    font-size: 13px;
+    min-height: 18px;
+    padding: 10px;
+    border-radius: 8px;
+    display: none;
   }
-  .ok { color: #00ffaa; }
-  .err { color: #ff5252; }
+  #status.show { display: block; }
+  .ok { background: rgba(0,255,170,0.1); color: #00ffaa; }
+  .err { background: rgba(255,82,82,0.1); color: #ff5252; }
+  .loading { background: rgba(255,255,255,0.05); color: #aaa; }
 </style>
 </head>
 <body>
 
 <div class="card">
   <h2>🔐 Panel Lisensi</h2>
+  <div class="subtitle">ALEX STUDIO — Kelola status aktivasi proyek</div>
 
   <label>URL Worker</label>
   <input type="text" id="workerUrl" placeholder="https://worker-kamu.workers.dev/set-license">
@@ -111,7 +152,10 @@
   <input type="text" id="projectName" placeholder="Contoh: AlexDonateRobux">
 
   <div class="toggle-row">
-    <span>Status Lunas</span>
+    <div>
+      <div class="toggle-label">Status Lunas</div>
+      <div class="toggle-status" id="toggleStatusText">Belum lunas</div>
+    </div>
     <label class="switch">
       <input type="checkbox" id="paidToggle">
       <span class="slider"></span>
@@ -121,27 +165,45 @@
   <label>Token Rahasia</label>
   <input type="password" id="secretToken" placeholder="Token rahasia Worker kamu">
 
-  <button onclick="updateLicense()">Simpan Perubahan</button>
+  <button id="submitBtn" onclick="updateLicense()">Simpan Perubahan</button>
 
   <div id="status"></div>
 </div>
 
 <script>
+const toggle = document.getElementById('paidToggle');
+const toggleText = document.getElementById('toggleStatusText');
+const btn = document.getElementById('submitBtn');
+const statusEl = document.getElementById('status');
+
+toggle.addEventListener('change', () => {
+  toggleText.textContent = toggle.checked ? 'Lunas ✅' : 'Belum lunas';
+});
+
+function setStatus(message, type) {
+  statusEl.textContent = message;
+  statusEl.className = 'show ' + type;
+}
+
 async function updateLicense() {
   const url = document.getElementById('workerUrl').value.trim();
   const project = document.getElementById('projectName').value.trim();
-  const paid = document.getElementById('paidToggle').checked;
+  const paid = toggle.checked;
   const secret = document.getElementById('secretToken').value.trim();
-  const statusEl = document.getElementById('status');
 
   if (!url || !project || !secret) {
-    statusEl.textContent = 'Semua kolom wajib diisi.';
-    statusEl.className = 'err';
+    setStatus('Semua kolom wajib diisi.', 'err');
     return;
   }
 
-  statusEl.textContent = 'Mengirim...';
-  statusEl.className = '';
+  if (!url.startsWith('https://')) {
+    setStatus('URL Worker harus diawali https://', 'err');
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Mengirim...';
+  setStatus('Mengirim permintaan ke server...', 'loading');
 
   try {
     const res = await fetch(url, {
@@ -149,18 +211,24 @@ async function updateLicense() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ project, paid, secret })
     });
-    const data = await res.json();
 
-    if (data.success) {
-      statusEl.textContent = `Berhasil! "${project}" sekarang berstatus: ${paid ? 'LUNAS' : 'BELUM LUNAS'}`;
-      statusEl.className = 'ok';
+    let data;
+    try {
+      data = await res.json();
+    } catch {
+      throw new Error('Respons server tidak valid');
+    }
+
+    if (res.ok && data.success) {
+      setStatus(`Berhasil! "${project}" sekarang: ${paid ? 'LUNAS ✅' : 'BELUM LUNAS ❌'}`, 'ok');
     } else {
-      statusEl.textContent = 'Gagal: ' + (data.error || 'Tidak diketahui');
-      statusEl.className = 'err';
+      setStatus('Gagal: ' + (data.error || `HTTP ${res.status}`), 'err');
     }
   } catch (e) {
-    statusEl.textContent = 'Error koneksi: ' + e.message;
-    statusEl.className = 'err';
+    setStatus('Error koneksi: ' + e.message, 'err');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Simpan Perubahan';
   }
 }
 </script>
